@@ -1,0 +1,31 @@
+[
+  { "name": "type:bug", "color": "1d76db", "description": "Algo no funciona como debería" },
+  { "name": "type:feature", "color": "1d76db", "description": "Solicitud de nueva funcionalidad" },
+  { "name": "type:docs", "color": "1d76db", "description": "Cambios de documentación" },
+  { "name": "type:chore", "color": "1d76db", "description": "Mantenimiento, sin cambio funcional" },
+  { "name": "type:question", "color": "1d76db", "description": "Pregunta o solicitud de información" },
+
+  { "name": "priority:critical", "color": "b60205", "description": "Bloquea el uso del juego, requiere atención inmediata" },
+  { "name": "priority:high", "color": "d93f0b", "description": "Debería resolverse pronto" },
+  { "name": "priority:medium", "color": "fbca04", "description": "Importante pero no urgente" },
+  { "name": "priority:low", "color": "0e8a16", "description": "Deseable, sin urgencia" },
+
+  { "name": "area:rendering", "color": "5319e7", "description": "Dibujo en canvas: piezas, colores, ghost piece, tablero" },
+  { "name": "area:gameplay", "color": "5319e7", "description": "Lógica del juego: colisión, rotación, líneas, spawn" },
+  { "name": "area:input", "color": "5319e7", "description": "Controles de teclado" },
+  { "name": "area:ui", "color": "5319e7", "description": "HTML/CSS: HUD, overlay, layout" },
+  { "name": "area:scoring", "color": "5319e7", "description": "Puntuación, niveles, velocidad de caída" },
+  { "name": "area:ci", "color": "5319e7", "description": "GitHub Actions y automatización del repo" },
+
+  { "name": "status:needs-info", "color": "fbca04", "description": "Falta información del autor para poder diagnosticar o implementar" },
+  { "name": "status:ready-to-implement", "color": "fbca04", "description": "Diagnóstico completo, listo para generar código" },
+  { "name": "status:blocked", "color": "fbca04", "description": "Bloqueado por otro issue o decisión externa" },
+
+  { "name": "complexity:trivial", "color": "c5def5", "description": "Cambio de una línea o constante" },
+  { "name": "complexity:small", "color": "c5def5", "description": "Cambio acotado a una función o archivo" },
+  { "name": "complexity:medium", "color": "c5def5", "description": "Toca varias funciones o más de un archivo" },
+  { "name": "complexity:large", "color": "c5def5", "description": "Cambio estructural o de varias áreas" },
+
+  { "name": "claude:triaged", "color": "0e8a16", "description": "Claude ya generó el diagnóstico y los labels de este issue" },
+  { "name": "claude:implement", "color": "0e8a16", "description": "Aplica este label para que Claude implemente la solución y abra el PR" }
+]
