@@ -1,0 +1,69 @@
+name: Claude Issue Implement
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: claude-implement-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  implement:
+    if: github.event.label.name == 'claude:implement' && github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Implementation
+        id: claude-implement
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            TITLE: ${{ github.event.issue.title }}
+            BODY:
+            ${{ github.event.issue.body }}
+
+            A este issue se le acaba de aplicar el label `claude:implement`. Ya
+            existe un comentario de diagnóstico automático que empieza con el
+            marcador `<!-- claude-triage -->` (búscalo con
+            `gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments --paginate --jq '.[] | select(.body | contains("<!-- claude-triage -->")) | .body'`).
+            Ese diagnóstico es tu especificación: úsalo como fuente de verdad del
+            plan de implementación, el área afectada y los criterios de aceptación.
+            Si no existe ese comentario, léete tú mismo CLAUDE.md y el código
+            relevante antes de continuar.
+
+            Pasos:
+
+            1. Implementa el cambio siguiendo el "Plan de implementación propuesto"
+               del diagnóstico, respetando el estilo y las convenciones existentes
+               en game.js / index.html / style.css (ver CLAUDE.md).
+            2. Crea una rama nueva a partir de la rama por defecto, con el nombre
+               `claude/issue-${{ github.event.issue.number }}-<fecha-YYYYMMDD-HHmm>`.
+            3. Haz commit de los cambios.
+            4. Abre un Pull Request contra la rama por defecto con
+               `gh pr create --repo ${{ github.repository }}`, cuyo cuerpo incluya
+               `Closes #${{ github.event.issue.number }}`, un resumen del cambio y
+               cómo se verificó manualmente (recuerda que no hay build/test/lint en
+               este repo; la verificación es abrir index.html en un navegador).
+            5. Comenta en el issue con `gh issue comment` el enlace al PR abierto.
+
+            No hagas merge del PR tú mismo — eso lo revisa una persona (y el
+            workflow de code review ya configurado en este repo se encargará de
+            revisarlo automáticamente).
+
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr create:*),Bash(gh issue comment:*),Bash(gh api:*)" --max-turns 60

@@ -1,0 +1,118 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+concurrency:
+  group: claude-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # Solo issues reales (github.event.issue.pull_request existe también en PRs)
+    # y nunca en respuesta a acciones de un bot, para evitar bucles.
+    if: github.event.issue.pull_request == null && github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        id: claude-triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            TITLE: ${{ github.event.issue.title }}
+            AUTHOR: ${{ github.event.issue.user.login }}
+            BODY:
+            ${{ github.event.issue.body }}
+
+            Eres el triage automático de issues de este repositorio (un Tetris en
+            JavaScript vanilla). Tu única tarea es ANALIZAR el issue de arriba,
+            etiquetarlo y publicar un diagnóstico técnico. NO debes escribir código,
+            NO debes crear ramas ni Pull Requests, NO debes cerrar el issue, y NO
+            debes editar el título ni el cuerpo del issue.
+
+            Pasos a seguir:
+
+            1. Lee CLAUDE.md para entender la arquitectura del proyecto (index.html,
+               style.css, game.js) y sus mecánicas clave.
+            2. Lee game.js, index.html y style.css con las herramientas Read/Grep/Glob
+               las veces que necesites para localizar con precisión qué archivo(s) y
+               función(es) están relacionados con el issue (por ejemplo COLORS,
+               PIECES, rotateCW, tryRotate, collide, lockPiece, clearLines, spawn,
+               dibujo en canvas, el listener de teclado, el HUD, el overlay, etc.).
+            3. Busca posibles duplicados con `gh search issues --repo ${{ github.repository }} "<términos clave>"`.
+            4. Lee `.github/labels.json` (Read) — esa es la ÚNICA fuente de labels
+               válidos. No inventes labels ni uses otros que no estén en ese archivo.
+               Reglas de selección:
+               - Exactamente un label `type:*`.
+               - Exactamente un label `priority:*`.
+               - Exactamente un label `complexity:*`.
+               - Uno o más labels `area:*` (los que apliquen).
+               - `status:needs-info` si el issue no trae información suficiente para
+                 proponer un plan de implementación concreto; en caso contrario
+                 `status:ready-to-implement`.
+               - Añade siempre `claude:triaged`.
+               Aplica los labels elegidos con:
+               `gh issue edit ${{ github.event.issue.number }} --repo ${{ github.repository }} --add-label "label1,label2,..."`
+               (usa solo --add-label; no quites labels que ya existan a menos que sean
+               labels de esta misma taxonomía que ya no apliquen).
+            5. Publica el diagnóstico como un ÚNICO comentario "sticky" que se
+               actualiza en cada edición del issue, en vez de acumular comentarios:
+               a. Busca si ya existe un comentario tuyo anterior que contenga el
+                  marcador `<!-- claude-triage -->`:
+                  `gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments --paginate --jq '.[] | select(.body | contains("<!-- claude-triage -->")) | .id'`
+               b. Si existe un ID, actualiza ESE comentario:
+                  `gh api --method PATCH repos/${{ github.repository }}/issues/comments/<ID> -f body=@archivo.md`
+               c. Si no existe ningún comentario con ese marcador, crea uno nuevo:
+                  `gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file archivo.md`
+               (Escribe el contenido del comentario a un archivo temporal con Write
+               y pásalo con --body-file / -f body=@archivo, para no pelear con el
+               escapado de shell en un string multilínea.)
+
+            El comentario debe seguir EXACTAMENTE esta estructura en español,
+            empezando por el marcador oculto en la primera línea:
+
+            <!-- claude-triage -->
+            ## 🔍 Diagnóstico automático
+
+            **Tipo:** <type elegido> · **Prioridad:** <priority elegida> · **Área:** <area(s) elegidas> · **Complejidad:** <complexity elegida>
+
+            ### Resumen del problema
+            <1-3 frases resumiendo el issue con tus propias palabras>
+
+            ### Análisis técnico
+            <Archivos y funciones implicados, citados como `game.js:123` o
+            `nombreFuncion()`. Explica por qué esas partes del código son las
+            responsables.>
+
+            ### Causa raíz probable
+            <Tu mejor hipótesis de la causa raíz, o "No aplica" si es una feature nueva>
+
+            ### Plan de implementación propuesto
+            <Pasos concretos y acotados para resolverlo. Si falta información,
+            indícalo aquí en vez de inventar una solución.>
+
+            ### Criterios de aceptación
+            <Cómo se verifica manualmente en el navegador que quedó resuelto>
+
+            ### Riesgos / preguntas abiertas
+            <Riesgos del cambio, o preguntas que le harías al autor si falta info>
+
+            ---
+            🤖 Diagnóstico generado automáticamente por Claude · se actualiza en cada edición del issue. Cuando el diagnóstico esté completo, aplica el label `claude:implement` para que Claude genere el código de la solución.
+
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh issue list:*),Bash(gh search issues:*),Bash(gh label list:*),Bash(gh api:*)" --max-turns 30 --model claude-sonnet-5
